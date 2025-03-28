@@ -28,16 +28,25 @@ uploaded_file = st.file_uploader("Upload a file", type=["jpg", "jpeg", "png", "m
 
 def draw_detections(frame, results, conf_threshold):
     boxes = results[0].boxes
+    cropped_images = []  # Store cropped images for Streamlit display
+
     for det in boxes:
         conf = det.conf[0].item()
         if conf > conf_threshold:
             x1, y1, x2, y2 = map(int, det.xyxy[0])
             cls = int(det.cls[0].item())
             label = labels[cls] if cls < len(labels) else f"Class {cls}"
+            
+            # Draw rectangle on the frame (optional)
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
             cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-    return frame
+
+            # Crop the detected region
+            cropped_image = frame[y1:y2, x1:x2]
+            cropped_images.append((cropped_image, label, conf))
+
+    return frame, cropped_images
 
 if uploaded_file:
     if file_type == "Image":
@@ -48,6 +57,7 @@ if uploaded_file:
         boxes = results[0].boxes
 
         detected_labels = []
+        cropped_images = []
 
         for det in boxes:
             conf = det.conf[0].item()
@@ -80,9 +90,16 @@ if uploaded_file:
                 break
 
             results = model(frame)
-            frame = draw_detections(frame, results, confidence)
+            frame, cropped_images = draw_detections(frame, results, confidence)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
             stframe.image(frame, channels="RGB")
+
+            # Display cropped images in Streamlit below the video frame
+            if cropped_images:
+                for cropped_image, label, conf in cropped_images:
+                    st.subheader(f"Detected: {label} ({conf:.2f})")
+                    st.image(cropped_image, channels="RGB")
 
         cap.release()
         os.remove(tfile.name)
