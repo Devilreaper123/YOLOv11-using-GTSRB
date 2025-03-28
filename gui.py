@@ -2,12 +2,13 @@ import streamlit as st
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import time
+import tempfile
+import os
 
-# Load your YOLO model
+# Load YOLO model
 model = YOLO("best.pt")
 
-# Load labels
+# Label list
 labels = [
     'Speed Limit 50', 'Speed Limit 100',
     'No Overtaking', 'Yield',
@@ -16,62 +17,53 @@ labels = [
     'Pedestrian Crossing', 'Children Crossing'
 ]
 
-# CONFIDENCE_THRESHOLD = 0.70
-IOU_THRESHOLD = 0.2
+# Title & Confidence Slider
+st.title("🚦 YOLOv8 Traffic Sign Detection")
+confidence = st.slider("Confidence Threshold", 0.0, 1.0, 0.6)
 
-def process_detections(frame, results):
-    boxes, confidences, class_ids = [], [], []
+# File uploader
+file_type = st.radio("Choose file type", ["Image", "Video"])
 
-    for det in results[0].boxes:
+uploaded_file = st.file_uploader("Upload a file", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
+
+def draw_detections(frame, results, conf_threshold):
+    boxes = results[0].boxes
+    for det in boxes:
         conf = det.conf[0].item()
-        if conf > confidence:
-            x1, y1, x2, y2 = det.xyxy[0]
+        if conf > conf_threshold:
+            x1, y1, x2, y2 = map(int, det.xyxy[0])
             cls = int(det.cls[0].item())
-
-            boxes.append([int(x1), int(y1), int(x2), int(y2)])
-            confidences.append(float(conf))
-            class_ids.append(cls)
-
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, confidence, IOU_THRESHOLD)
-
-    if indices is not None and len(indices) > 0:
-        for i in indices.flatten():
-            x1, y1, x2, y2 = boxes[i]
-            conf = confidences[i]
-            cls = class_ids[i]
-            label = labels[cls]
-            conf_text = f'{conf:.2f}'
-
+            label = labels[cls] if cls < len(labels) else f"Class {cls}"
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-            cv2.putText(frame, f'{label} {conf_text}', (x1, y1 - 10),
+            cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
     return frame
 
-# Streamlit interface
-st.title("YOLOv11 Real-Time Traffic Sign Detection")
-run = st.checkbox('Start Camera')
-confidence = st.number_input("Confidence", min_value=0.0, max_value=1.0, value=0.6, step=0.01, format="%.2f")
+if uploaded_file:
+    if file_type == "Image":
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, 1)
+        results = model(image)
+        image = draw_detections(image, results, confidence)
+        st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), channels="RGB", caption="Detected Image")
 
-frame_placeholder = st.empty()
+    elif file_type == "Video":
+        # Save to temp file
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile.write(uploaded_file.read())
 
-if run:
-    cap = cv2.VideoCapture(0)  # Use 0 or 1 depending on your camera index
+        cap = cv2.VideoCapture(tfile.name)
+        stframe = st.empty()
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            st.warning("Failed to grab frame.")
-            break
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-        results = model(frame)
-        frame = process_detections(frame, results)
+            results = model(frame)
+            frame = draw_detections(frame, results, confidence)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            stframe.image(frame, channels="RGB")
 
-        # Convert BGR to RGB for Streamlit
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_placeholder.image(frame, channels="RGB")
-
-        # Optional sleep to control frame rate
-        time.sleep(0.003)
-
-    cap.release()
+        cap.release()
+        os.remove(tfile.name)
