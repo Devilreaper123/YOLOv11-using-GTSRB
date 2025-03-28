@@ -6,6 +6,7 @@ import tempfile
 import os
 
 # Load YOLO model
+@st.cache_data
 model = YOLO("best.pt")
 
 # Label list
@@ -22,9 +23,13 @@ st.title("🚦 YOLOv8 Traffic Sign Detection")
 confidence = st.slider("Confidence Threshold", 0.0, 1.0, 0.6)
 
 # File uploader
-file_type = st.radio("Choose file type", ["Image", "Video"])
+# file_type = st.radio("Choose file type", ["Image", "Video"])
+file_type = st.radio("Choose file type", ["Image"])
 
-uploaded_file = st.file_uploader("Upload a file", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
+
+# uploaded_file = st.file_uploader("Upload a file", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
+uploaded_file = st.file_uploader("Upload a file", type=["jpg", "jpeg", "png"])
+
 
 def draw_detections(frame, results, conf_threshold):
     boxes = results[0].boxes
@@ -76,30 +81,32 @@ if uploaded_file:
 
         # Show image (optional, unmodified)
         st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), caption="Input Image", channels="RGB")
+else : 
+    st.title("Not a valid file")
+    # elif file_type == "Video":
+    #     tfile = tempfile.NamedTemporaryFile(delete=False)
+    #     tfile.write(uploaded_file.read())
 
-    elif file_type == "Video":
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(uploaded_file.read())
+    #     cap = cv2.VideoCapture(tfile.name)
+    #     stframe = st.empty()
 
-        cap = cv2.VideoCapture(tfile.name)
-        stframe = st.empty()
+    #     while cap.isOpened():
+    #         ret, frame = cap.read()
+    #         if not ret:
+    #             break
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+    #         results = model(frame)
+    #         frame, cropped_images = draw_detections(frame, results, confidence)
+    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            results = model(frame)
-            frame, cropped_images = draw_detections(frame, results, confidence)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #         stframe.image(frame, channels="RGB")
 
-            stframe.image(frame, channels="RGB")
+    #         # Display cropped images in Streamlit below the video frame
+    #         if cropped_images:
+    #             for cropped_image, label, conf in cropped_images:
+    #                 st.subheader(f"Detected: {label} ({conf:.2f})")
+    #                 st.image(cropped_image, channels="RGB")
 
-            # Display cropped images in Streamlit below the video frame
-            if cropped_images:
-                for cropped_image, label, conf in cropped_images:
-                    st.subheader(f"Detected: {label} ({conf:.2f})")
-                    st.image(cropped_image, channels="RGB")
-
-        cap.release()
-        os.remove(tfile.name)
+    #     cap.release()
+    #     os.remove(tfile.name)
+        
