@@ -84,8 +84,6 @@ if uploaded_file:
 
         # Show image (optional, unmodified)
         st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), caption="Input Image", channels="RGB")
-else : 
-    st.title("Not a valid file")
     # elif file_type == "Video":
     #     tfile = tempfile.NamedTemporaryFile(delete=False)
     #     tfile.write(uploaded_file.read())
