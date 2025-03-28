@@ -49,9 +49,10 @@ def process_detections(frame, results):
     return frame
 
 # Streamlit interface
-st.title("YOLOv8 Real-Time Traffic Sign Detection")
+st.title("YOLOv11 Real-Time Traffic Sign Detection")
 run = st.checkbox('Start Camera')
-confidence = st.number_input(min_value=0,max_value=1,format=float,placeholder=0.6,label="Confidence")
+confidence = st.number_input("Confidence", min_value=0.0, max_value=1.0, value=0.6, step=0.01, format="%.2f")
+
 frame_placeholder = st.empty()
 
 if run:
