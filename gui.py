@@ -6,8 +6,11 @@ import tempfile
 import os
 
 # Load YOLO model
-@st.cache_data
-model = YOLO("best.pt")
+@st.cache_resource
+def load_model():
+    return YOLO("best.pt")
+
+model = load_model()
 
 # Label list
 labels = [
