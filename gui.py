@@ -43,12 +43,31 @@ if uploaded_file:
     if file_type == "Image":
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
         image = cv2.imdecode(file_bytes, 1)
+
         results = model(image)
-        image = draw_detections(image, results, confidence)
-        st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), channels="RGB", caption="Detected Image")
+        boxes = results[0].boxes
+
+        detected_labels = []
+
+        for det in boxes:
+            conf = det.conf[0].item()
+            if conf > confidence:
+                cls = int(det.cls[0].item())
+                label = labels[cls] if cls < len(labels) else f"Class {cls}"
+                detected_labels.append(f"{label} ({conf:.2f})")
+
+        # Show detected labels in Streamlit
+        if detected_labels:
+            st.subheader("🧠 Detected Labels:")
+            for lbl in detected_labels:
+                st.markdown(f"- {lbl}")
+        else:
+            st.info("No traffic signs detected with the given confidence threshold.")
+
+        # Show image (optional, unmodified)
+        st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), caption="Input Image", channels="RGB")
 
     elif file_type == "Video":
-        # Save to temp file
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(uploaded_file.read())
 
